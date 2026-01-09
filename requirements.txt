@@ -1,1 +1,6 @@
- 
+ # Phase 1 Ingestion
+ sec-edgar-downloader
+python-dotenv
+
+#Utilities
+python-dotenv
