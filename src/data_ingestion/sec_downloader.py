@@ -2,6 +2,8 @@ from sec_edgar_downloader import Downloader
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from typing import List
+
 def download_10k(ticker:str, num_filing:int = 3):
     load_dotenv()
     email = os.getenv("SEC_USER_EMAIL","you@example.com")
@@ -13,8 +15,14 @@ def download_10k(ticker:str, num_filing:int = 3):
 
     path.mkdir(parents=True, exist_ok=True)
     dl = Downloader(email,company_name,path_to_save)
-    print("Starting download of 10-K filings")
+    print(f"Starting download {ticker} of 10-K filings")
     dl.get("10-K",ticker,limit=num_filing)
 
+def download_multiple_10k(tickers : List[str],num_filing:int):
+    print("Download multiple 10k")
+    for ticker in tickers:
+        download_10k(ticker=ticker,num_filing=2)
+    return
+
 if __name__ == "__main__":
-    download_10k(ticker="NVDA",num_filing=2)
+    download_multiple_10k(["AAPL","NVDA"],num_filing=2)
