@@ -2,9 +2,10 @@ from sec_edgar_downloader import Downloader
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from typing import List
+from typing import List,Dict
 from datetime import datetime
 import json
+import time
 
 def download_10k(ticker:str, num_filing:int = 3):
     load_dotenv()
@@ -16,10 +17,6 @@ def download_10k(ticker:str, num_filing:int = 3):
 
     try:
         path.mkdir(parents=True, exist_ok=True)
-
-        # Force exception for testing
-        # if test_exception:
-        #     raise Exception("Simulated error for testing")
         dl = Downloader(email,company_name,path_to_save)
         print(f"Starting download {ticker} of 10-K filings")
         dl.get("10-K",ticker,limit=num_filing)
@@ -66,11 +63,50 @@ def download_10k(ticker:str, num_filing:int = 3):
 
         return {ticker:[]}
     
-def download_multiple_10k(tickers : List[str],num_filing:int):
-    print("Download multiple 10k")
-    for ticker in tickers:
-        download_10k(ticker=ticker,num_filing=num_filing)
-    return
+def download_multiple_10k(tickers : List[str],num_filing:int) -> Dict[str,List[Path]]:
+    print("Downloading multiple 10k...")
+    all_fillings = {}
+    for i,ticker in enumerate(tickers,1):
+       print(f"\n[{i}/{len(tickers)}] Processing {ticker}...")
+       result = download_10k(ticker=ticker,num_filing=num_filing)
+       all_fillings.update(result)
+       
+       if i < len(tickers):
+            print("Waiting for 1 seconds before next download to respect SEC rate limits...")
+            time.sleep(1)  # Sleep for 1 second between downloads to respect SEC rate limits   
+    return all_fillings
+
+def get_download_summary() -> Dict[str,any]:
+    print("Creating download summary")
+    path_to_save = "data/raw"
+    path = Path(path_to_save)
+    metadata_files = list(path.glob("*_download_metadata.json"))
+    summary = {
+        "total_ticker_attempted" : len(metadata_files),
+        "successfull_downloads": 0,
+        "failed_downloads": 0,
+        "total_files": 0,
+        "details": []
+    }
+
+    for metadata_file in metadata_files:
+        with open(metadata_file,'r',encoding="utf-8") as f:
+            metadata = json.load(f)
+            if metadata.get("download_status") == "success":
+                summary["successfull_downloads"] +=1
+                summary["total_files"] += metadata.get("num_filing",0)
+            else:
+                summary["failed_downloads"] +=1
+            
+            summary["details"].append(metadata)
+
+    return summary
+
 
 if __name__ == "__main__":
-    download_multiple_10k(["AAPL","NVDA","INVALID_TICKER_XYZ"],num_filing=3)
+    result = download_multiple_10k(["AAPL","NVDA","INVALID_TICKER_XYZ"],num_filing=3)
+
+    print("\n"+ "="*60)
+    print("Download Summary:")
+    summary = get_download_summary()
+    print(json.dumps(summary,indent=2))
